@@ -1,0 +1,134 @@
+<!doctype html>
+<html class="no-js" lang="">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>조직원 관계도</title>
+
+    <script src="script/raphael.min.js"></script>
+    <script src="script/Treant.js"></script>
+    <script src="script/xlsx.full.min.js"></script>
+    <link href="style/Treant.css" rel="stylesheet"/>
+    <style>
+        .nodeExample1 {
+            border: 2px solid #4a90e2;
+            border-radius: 12px;
+            padding: 10px;
+            background-color: #f0f8ff;
+            box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.1);
+            font-family: 'Segoe UI', sans-serif;
+            color: #333;
+            text-align: left;
+            transition: all 0.2s ease;
+        }
+
+        .nodeExample1:hover {
+            background-color: #e6f2ff;
+            transform: scale(1.02);
+            box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .ceoNode {
+            background-color: #ffe0e0;
+            border-color: #ff8080;
+        }
+
+        .teamLeadNode {
+            background-color: #e0f7ff;
+            border-color: #40c4ff;
+        }
+
+        .staffNode {
+            background-color: #f5f5f5;
+            border-color: #bdbdbd;
+        }
+    </style>
+</head>
+
+<body>
+<h2>엑셀 파일 업로드</h2>
+<input type="file" id="excelFile" accept=".xlsx"/>
+<pre id="output">파일을 업로드하면 이곳에 내용이 표시됩니다.</pre>
+<div id="chart-container" class="Treant loaded">
+    <div class="chart" id="tree-diagram"></div>
+</div>
+
+<script>
+    document.getElementById('excelFile').addEventListener('change', function (e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+            const nodeMap = {};
+            const rootNodes = [];
+
+            // ✅ 기존 트리 제거 (여기만 추가!)
+            document.getElementById('tree-diagram').innerHTML = '';
+
+            // 노드 구성
+            jsonData.forEach(row => {
+                const id = row['ID'];
+                const pid = row['상위 ID'];
+
+                const textFields = Object.entries(row)
+                    .filter(([key]) => key !== 'ID' && key !== '상위 ID')
+                    .map(([key, val]) => `<strong>${key}:</strong> ${val}`)
+                    .join('<br>');
+
+                nodeMap[id] = {
+                    innerHTML: `<div style="padding:5px; font-size:13px">${textFields}</div>`,
+                    HTMLid: 'node-' + id,
+                    children: []
+                };
+            });
+
+            // 부모 자식 연결
+            jsonData.forEach(row => {
+                const id = row['ID'];
+                const pid = row['상위 ID'];
+
+                if (!pid || !nodeMap[pid]) {
+                    rootNodes.push(nodeMap[id]);
+                } else {
+                    nodeMap[pid].children.push(nodeMap[id]);
+                }
+            });
+
+            // chart 구성
+            const chartConfig = {
+                chart: {
+                    container: "#tree-diagram",
+                    connectors: {
+                        type: 'step',
+                        style: {
+                            'stroke': '#999',
+                            'stroke-width': 2
+                        }
+                    },
+                    node: { HTMLclass: 'nodeExample1' }
+                },
+                nodeStructure: (rootNodes.length === 1)
+                    ? rootNodes[0]
+                    : {
+                        text: { name: "ROOT" },
+                        children: rootNodes
+                    }
+            };
+
+            // ✅ 새로운 트리 생성
+            new Treant(chartConfig);
+            document.getElementById('excelFile').value = '';
+        };
+
+        reader.readAsArrayBuffer(file);
+    });
+</script>
+</body>
+</html>
