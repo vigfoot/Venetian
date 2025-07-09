@@ -23,6 +23,10 @@
             transition: all 0.2s ease;
         }
 
+        .nodeExample1 > *, .nodeExample1 strong {
+            word-break: keep-all;
+        }
+
         .nodeExample1:hover {
             background-color: #e6f2ff;
             transform: scale(1.02);
@@ -62,9 +66,9 @@
         const reader = new FileReader();
         reader.onload = function (e) {
             const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, { type: 'array' });
+            const workbook = XLSX.read(data, {type: 'array'});
             const sheet = workbook.Sheets[workbook.SheetNames[0]];
-            const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+            const jsonData = XLSX.utils.sheet_to_json(sheet, {defval: ''});
 
             const nodeMap = {};
             const rootNodes = [];
@@ -75,12 +79,17 @@
             // 노드 구성
             jsonData.forEach(row => {
                 const id = row['ID'];
-                const pid = row['상위 ID'];
-
                 const textFields = Object.entries(row)
                     .filter(([key]) => key !== 'ID' && key !== '상위 ID')
-                    .map(([key, val]) => `<strong>${key}:</strong> ${val}`)
-                    .join('<br>');
+                    .filter(([key]) => !key.startsWith('__EMPTY'))
+                    .map(([key, val]) => {
+                        if (key === '성명') {
+                            return `<div style="text-align: center; font-weight: bold; font-size: 15px; margin: 1px">${val}</div>`;
+                        } else {
+                            return `<div style="display: flex; flex-direction: row; flex-wrap: nowrap"><strong>${key}: </strong> <span>${val}</span></div>`;
+                        }
+                    })
+                    .join('');
 
                 nodeMap[id] = {
                     innerHTML: `<div style="padding:5px; font-size:13px">${textFields}</div>`,
@@ -91,6 +100,7 @@
 
             // 부모 자식 연결
             jsonData.forEach(row => {
+                if (row['성명']?.trim() === '') return;
                 const id = row['ID'];
                 const pid = row['상위 ID'];
 
@@ -112,12 +122,12 @@
                             'stroke-width': 2
                         }
                     },
-                    node: { HTMLclass: 'nodeExample1' }
+                    node: {HTMLclass: 'nodeExample1'}
                 },
                 nodeStructure: (rootNodes.length === 1)
                     ? rootNodes[0]
                     : {
-                        text: { name: "ROOT" },
+                        text: {name: "ROOT"},
                         children: rootNodes
                     }
             };
